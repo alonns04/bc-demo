@@ -225,10 +225,10 @@ if st.session_state.firma_alumno:
     st.code(st.session_state.firma_alumno, language="text")
     
     # Calcular el hash SHA-256 de la firma
-    hash_firma = hashlib.sha256(st.session_state.firma_alumno.encode()).hexdigest()
+    hash_firma = hashlib.sha3_256(st.session_state.firma_alumno.encode()).hexdigest()
     
     # Mostrar el hash SHA-256 debajo de la firma
-    st.subheader("Hash SHA-256 de la Firma:")
+    st.subheader("Hash SHA3-256 de la Firma:")
     st.code(hash_firma, language="text")
 
 
@@ -260,7 +260,7 @@ if clave_institucion_privada_bytes:
 
 # Verificar si ya se firmó la firma del alumno y si no, firmarla con la clave de la institución
 if not st.session_state.firma_institucion and st.session_state.firma_alumno:
-    st.session_state.firma_institucion = firmar_hash(st.session_state.firma_alumno, st.session_state.clave_institucion_privada)
+    st.session_state.firma_institucion = firmar_hash(hashlib.sha3_256(st.session_state.firma_alumno.encode()).hexdigest(), st.session_state.clave_institucion_privada)
 
 # Mostrar la firma de la institución
 if st.session_state.firma_institucion:
