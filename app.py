@@ -25,14 +25,20 @@ def generar_claves_ecc():
 
     return pem_private_key.decode(), pem_public_key.decode()
 
-# Función para firmar el hash
+# Función para firmar el hash con SHA3-256
 def firmar_hash(hash_data, private_key_pem):
+    # Cargar la clave privada desde el formato PEM
     private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
+    
+    # Firmar el hash usando SHA3-256 y ECC
     signature = private_key.sign(
         hash_data.encode(),
-        ec.ECDSA(hashes.SHA256())
+        ec.ECDSA(hashes.SHA3_256())
     )
+    
+    # Devolver la firma en formato hexadecimal
     return signature.hex()
+
 
 # Separadores entre secciones
 def agregar_espacio():
@@ -56,6 +62,8 @@ if "clave_institucion_privada" not in st.session_state:
     st.session_state.clave_institucion_privada = ""
 if "firma_alumno" not in st.session_state:
     st.session_state.firma_alumno = ""  # Nueva variable para almacenar la firma del alumno
+if "firma_alumno_dict" not in st.session_state:
+    st.session_state.firma_alumno_dict = ""  # Nueva variable para almacenar la firma del alumno
 if "firma_institucion" not in st.session_state:
     st.session_state.firma_institucion = ""  # Nueva variable para almacenar la firma de la institución
 
@@ -208,11 +216,21 @@ st.json({
 if st.session_state.hash_alumno:
     st.subheader("Hash SHA3-256:")
     st.code(st.session_state.hash_alumno, language="text")
+    
+import hashlib
 
 # Mostrar la firma del alumno
 if st.session_state.firma_alumno:
     st.subheader("Firma del Alumno sobre el Hash:")
     st.code(st.session_state.firma_alumno, language="text")
+    
+    # Calcular el hash SHA-256 de la firma
+    hash_firma = hashlib.sha256(st.session_state.firma_alumno.encode()).hexdigest()
+    
+    # Mostrar el hash SHA-256 debajo de la firma
+    st.subheader("Hash SHA-256 de la Firma:")
+    st.code(hash_firma, language="text")
+
 
 # Generar la clave ECC para la institución (solo una vez)
 if not st.session_state.clave_institucion_privada:
@@ -259,6 +277,10 @@ agregar_espacio()
 
 
 
+import streamlit as st
+import json
+import hashlib
+
 # UI para la sección 4
 st.title("4º Egresado")
 st.write("Introducción de un mensaje y firma del hash del mensaje junto con la firma de la institución sobre la firma del alumno.")
@@ -275,26 +297,87 @@ if message:
     }
 
     # Crear el hash del diccionario
-    mensaje_json = json.dumps(mensaje_dict, sort_keys=True)
+    mensaje_json = json.dumps(mensaje_dict)
     hash_mensaje = hashlib.sha3_256(mensaje_json.encode()).hexdigest()
 
     # Mostrar el diccionario y su hash
     st.subheader("Diccionario con el Mensaje y Firma de la Institución:")
     st.json(mensaje_dict)
     
+
     st.subheader("Hash SHA3-256 del Diccionario:")
     st.code(hash_mensaje, language="text")
 
     # Verificar si el alumno ya firmó el hash
-    if not st.session_state.firma_alumno:
+    if not st.session_state.firma_alumno_dict:
         # El alumno firma el hash del diccionario
-        st.session_state.firma_alumno = firmar_hash(hash_mensaje, st.session_state.clave_alumno_privada)
+        st.session_state.firma_alumno_dict = firmar_hash(hash_mensaje, st.session_state.clave_alumno_privada)
 
     # Mostrar la firma del alumno sobre el hash del diccionario
-    if st.session_state.firma_alumno:
+    if st.session_state.firma_alumno_dict:
         st.subheader("Firma del Alumno sobre el Hash del Diccionario:")
-        st.code(st.session_state.firma_alumno, language="text")
+        st.code(st.session_state.firma_alumno_dict, language="text")
+
+        # Imprimir la firma del alumno
+        st.write("Firma del Alumno:", st.session_state.firma_alumno_dict)
+
 
 
 # Uso de la función para separar secciones
 agregar_espacio()
+
+
+import streamlit as st
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
+
+# Función para verificar la firma ECC sobre un mensaje hash
+def verify_signature(public_key_pem, signature, message_hash):
+    # Cargar la clave pública
+    public_key = serialization.load_pem_public_key(public_key_pem.encode())
+
+    # Verificar la firma
+    try:
+        # Decodificar la firma para obtener r y s
+        r, s = decode_dss_signature(signature)
+        public_key.verify(
+            signature,
+            message_hash.encode(),
+            ec.ECDSA(hashes.SHA3_256())
+        )
+        return True
+    except Exception as e:
+        return False
+
+# Interfaz de la aplicación Streamlit
+st.title("Verificación de Firma ECC sobre Hash SHA3-256")
+
+# Inputs del usuario
+public_key_pem = st.text_area("Ingresa la clave pública en formato PEM", height=150)
+signature = st.text_area("Ingresa la firma (en formato hexadecimal)", height=150)
+message_hash = st.text_input("Ingresa el hash SHA3-256 del mensaje")
+
+# Botón para verificar
+if st.button("Verificar firma"):
+    if not public_key_pem or not signature or not message_hash:
+        st.error("Por favor, completa todos los campos.")
+    else:
+        try:
+            # Convertir la firma hexadecimal a bytes
+            signature_bytes = bytes.fromhex(signature)
+
+            # Verificar la firma
+            print(public_key_pem)
+            print(signature_bytes)
+            print(message_hash)
+            if verify_signature(public_key_pem, signature_bytes, message_hash):
+                st.success("La firma es válida.")
+            else:
+                st.error("La firma no es válida.")
+        except Exception as e:
+            st.error(f"Ocurrió un error: {e}")
