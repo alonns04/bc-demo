@@ -4,6 +4,8 @@ import json
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
+import random
+
 
 # Función para generar claves ECC
 def generar_claves_ecc():
@@ -44,6 +46,14 @@ def firmar_hash(hash_data, private_key_pem):
 def agregar_espacio():
     st.markdown("<br><br><br><br><br><br><br><br><br><br>", unsafe_allow_html=True)
     
+
+# Función para generar un número aleatorio
+def generar_numero_aleatorio():
+    return random.randint(10, 50)
+
+# Función para generar un hash aleatorio
+def generar_hash_aleatorio():
+    return hashlib.sha3_256(str(random.random()).encode()).hexdigest()
 
 # Inicialización de variables en session_state
 if "nombre" not in st.session_state:
@@ -456,3 +466,68 @@ hash_mensaje = hashlib.sha3_256(mensaje_json.encode()).hexdigest()
 st.subheader("Hash SHA3-256 del Diccionario del Mensaje del Alumno:")
 st.code(hash_mensaje, language="text")
 
+
+
+
+
+agregar_espacio()
+
+
+
+
+# UI para la sección de la Blockchain
+st.title("6º Blockchain")
+st.write("Lo que figura en la blockchain.")
+
+# Generar datos aleatorios
+hash_previo = generar_hash_aleatorio()  # Hash previo aleatorio
+index = generar_numero_aleatorio()  # Index aleatorio
+
+# Mostrar los recuadros con la información
+st.subheader("Hash Previo:")
+st.text(hash_previo)
+
+st.subheader("Index:")
+st.text(str(index))
+
+
+
+
+# Mostrar ambas claves públicas
+st.subheader("Clave ECC Pública del Alumno:")
+clave_publica_alumno = serialization.load_pem_private_key(
+    st.session_state.clave_alumno_privada.encode(), password=None
+).public_key().public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+)
+st.code(clave_publica_alumno.decode(), language="text")
+
+st.subheader("Clave ECC Pública de la Institución:")
+clave_publica_institucion = serialization.load_pem_private_key(
+    st.session_state.clave_institucion_privada.encode(), password=None
+).public_key().public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+)
+st.code(clave_publica_institucion.decode(), language="text")
+
+
+
+# Mostrar el hash del analítico
+st.subheader("Hash del Analítico:")
+st.code(st.session_state.hash_alumno, language="text")
+
+# Mostrar la firma del alumno sobre el analítico
+if st.session_state.firma_alumno:
+    st.subheader("Signature del Alumno al Analítico:")
+    st.code(st.session_state.firma_alumno, language="text")
+else:
+    st.warning("Firma del Alumno no disponible.")
+
+# Mostrar la firma de la institución sobre la firma del alumno
+if st.session_state.firma_institucion:
+    st.subheader("Signature de la Institución a la Signature del Alumno:")
+    st.code(st.session_state.firma_institucion, language="text")
+else:
+    st.warning("Firma de la Institución no disponible.")
