@@ -285,6 +285,22 @@ import hashlib
 st.title("4º Egresado")
 st.write("Introducción de un mensaje y firma del hash del mensaje junto con la firma de la institución sobre la firma del alumno.")
 
+# Mostrar la clave privada del alumno
+st.subheader("Clave ECC Privada del Alumno:")
+st.code(st.session_state.clave_alumno_privada, language="text")
+
+
+# Mostrar la clave pública del alumno
+st.subheader("Clave ECC Pública del Alumno:")
+clave_publica_alumno = serialization.load_pem_private_key(
+    st.session_state.clave_alumno_privada.encode(), password=None
+).public_key().public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+)
+
+st.code(clave_publica_alumno.decode(), language="text")
+
 # Formulario para el mensaje
 message = st.text_area("Introduce un mensaje para firmar:")
 
@@ -304,7 +320,6 @@ if message:
     st.subheader("Diccionario con el Mensaje y Firma de la Institución:")
     st.json(mensaje_dict)
     
-
     st.subheader("Hash SHA3-256 del Diccionario:")
     st.code(hash_mensaje, language="text")
 
@@ -317,9 +332,6 @@ if message:
     if st.session_state.firma_alumno_dict:
         st.subheader("Firma del Alumno sobre el Hash del Diccionario:")
         st.code(st.session_state.firma_alumno_dict, language="text")
-
-        # Imprimir la firma del alumno
-        st.write("Firma del Alumno:", st.session_state.firma_alumno_dict)
 
 
 
@@ -354,30 +366,93 @@ def verify_signature(public_key_pem, signature, message_hash):
     except Exception as e:
         return False
 
-# Interfaz de la aplicación Streamlit
-st.title("Verificación de Firma ECC sobre Hash SHA3-256")
 
-# Inputs del usuario
-public_key_pem = st.text_area("Ingresa la clave pública en formato PEM", height=150)
-signature = st.text_area("Ingresa la firma (en formato hexadecimal)", height=150)
-message_hash = st.text_input("Ingresa el hash SHA3-256 del mensaje")
+st.sidebar.title("Verificación de Firma ECC sobre Hash SHA3-256")
 
-# Botón para verificar
-if st.button("Verificar firma"):
+public_key_pem = st.sidebar.text_area("Ingresa la clave pública en formato PEM", height=150)
+signature = st.sidebar.text_area("Ingresa la firma (en formato hexadecimal)", height=150)
+message_hash = st.sidebar.text_input("Ingresa el hash SHA3-256 del mensaje")
+
+if st.sidebar.button("Verificar firma"):
     if not public_key_pem or not signature or not message_hash:
-        st.error("Por favor, completa todos los campos.")
+        st.sidebar.error("Por favor, completa todos los campos.")
     else:
         try:
-            # Convertir la firma hexadecimal a bytes
             signature_bytes = bytes.fromhex(signature)
 
-            # Verificar la firma
-            print(public_key_pem)
-            print(signature_bytes)
-            print(message_hash)
             if verify_signature(public_key_pem, signature_bytes, message_hash):
-                st.success("La firma es válida.")
+                st.sidebar.success("La firma es válida.")
             else:
-                st.error("La firma no es válida.")
+                st.sidebar.error("La firma no es válida.")
         except Exception as e:
-            st.error(f"Ocurrió un error: {e}")
+            st.sidebar.error(f"Ocurrió un error: {e}")
+
+
+# UI para la sección de firma de la institución
+st.title("5º Empleador")
+st.write("Utiliza las claves públicas para validar el contenido completo.")
+
+# Mostrar el diccionario del analítico
+st.subheader("Diccionario del Analítico:")
+analitico_dict = {
+    "nombre": st.session_state.nombre,
+    "apellido": st.session_state.apellido,
+    "institucion": st.session_state.institucion,
+    "materias": st.session_state.materias
+}
+st.json(analitico_dict)
+
+# Mostrar el hash del analítico
+st.subheader("Hash SHA3-256 del Analítico:")
+st.code(st.session_state.hash_alumno, language="text")
+
+# Mostrar ambas claves públicas
+st.subheader("Clave ECC Pública del Alumno:")
+clave_publica_alumno = serialization.load_pem_private_key(
+    st.session_state.clave_alumno_privada.encode(), password=None
+).public_key().public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+)
+st.code(clave_publica_alumno.decode(), language="text")
+
+st.subheader("Clave ECC Pública de la Institución:")
+clave_publica_institucion = serialization.load_pem_private_key(
+    st.session_state.clave_institucion_privada.encode(), password=None
+).public_key().public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+)
+st.code(clave_publica_institucion.decode(), language="text")
+
+# Mostrar las firmas realizadas
+st.subheader("Firma del Alumno sobre el Hash del Analítico:")
+st.code(st.session_state.firma_alumno, language="text")
+
+# Calcular el hash de la firma del alumno sobre el analítico
+hash_firma_alumno = hashlib.sha3_256(st.session_state.firma_alumno.encode()).hexdigest()
+st.subheader("Hash SHA3-256 de la Firma del Alumno sobre el Hash del Analítico:")
+st.code(hash_firma_alumno, language="text")
+
+st.subheader("Firma de la Institución sobre la Firma del Alumno:")
+st.code(st.session_state.firma_institucion, language="text")
+
+st.subheader("Firma del Alumno sobre el Hash del Diccionario con Mensaje:")
+st.code(st.session_state.firma_alumno_dict, language="text")
+
+# Mostrar el diccionario del mensaje que envía el alumno
+mensaje_dict = {
+        "mensaje": message,
+        "firma": st.session_state.firma_institucion  # Firma de la institución sobre la firma del alumno
+    }
+st.subheader("Diccionario del Mensaje del Alumno:")
+st.json(mensaje_dict)
+
+# Calcular el hash del diccionario del mensaje
+
+mensaje_json = json.dumps(mensaje_dict)
+hash_mensaje = hashlib.sha3_256(mensaje_json.encode()).hexdigest()
+
+st.subheader("Hash SHA3-256 del Diccionario del Mensaje del Alumno:")
+st.code(hash_mensaje, language="text")
+
